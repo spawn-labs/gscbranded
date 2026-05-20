@@ -1,0 +1,30 @@
+{
+  "name": "branded-search-explorer",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit -p tsconfig.app.json && vite build",
+    "preview": "vite preview",
+    "pages:dev": "wrangler pages dev dist --compatibility-date=2024-09-23",
+    "pages:deploy": "npm run build && wrangler pages deploy dist"
+  },
+  "dependencies": {
+    "chart.js": "^4.4.8",
+    "react": "^19.0.0",
+    "react-chartjs-2": "^5.3.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250320.0",
+    "@tailwindcss/vite": "^4.0.14",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "tailwindcss": "^4.0.14",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.2",
+    "wrangler": "^4.4.0"
+  }
+}
