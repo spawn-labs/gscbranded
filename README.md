@@ -67,12 +67,17 @@ npm run dev
 
 ## Deploy to Cloudflare Pages
 
+Use a **Pages** project (Create application → **Pages** → Connect to Git), not a **Worker** project. Workers require a deploy command; Pages does not.
+
 1. Push this folder to a Git repo (or upload via dashboard)
 2. **Build command:** `npm run build`
 3. **Build output directory:** `dist`
-4. Add the same environment variables as `.dev.vars` under **Settings → Environment variables**
+4. Add the same environment variables as `.dev.vars` under **Settings → Variables and Secrets** (Production)
 5. Update `OAUTH_REDIRECT_URI` to your production URL
 6. Add the production redirect URI in Google Cloud Console
+7. **Retry deployment** after changing variables
+
+**Important:** Do not commit a `wrangler.toml` unless you define variables there too. With `wrangler.toml` present, Cloudflare treats it as the source of truth and **dashboard variables may not reach Functions** — causing `OAuth is not configured` even when secrets are set in the UI.
 
 Optional CLI:
 

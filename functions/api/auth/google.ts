@@ -3,7 +3,17 @@ import { googleAuthUrl } from "../../lib/google";
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { env } = context;
   if (!env.GOOGLE_CLIENT_ID || !env.OAUTH_REDIRECT_URI) {
-    return Response.json({ error: "OAuth is not configured" }, { status: 500 });
+    return Response.json(
+      {
+        error: "OAuth is not configured",
+        missing: {
+          GOOGLE_CLIENT_ID: !env.GOOGLE_CLIENT_ID,
+          OAUTH_REDIRECT_URI: !env.OAUTH_REDIRECT_URI,
+        },
+        hint: "Set Production variables under Settings → Variables and Secrets, then retry deployment. If wrangler.toml exists, remove it or sync vars via wrangler — dashboard-only vars may not reach Functions.",
+      },
+      { status: 500 },
+    );
   }
   const state = crypto.randomUUID();
   const headers = new Headers();
