@@ -8,8 +8,10 @@ import { TikTokPanel } from "./components/TikTokPanel";
 import {
   fetchAuthStatus,
   fetchBrandedSearch,
+  fetchBusinessUnits,
   fetchTikTokMetrics,
   logout,
+  type BusinessUnitOption,
   type BrandedSearchResponse,
   type CompareMode,
   type TikTokMetric,
@@ -25,6 +27,8 @@ export default function App() {
   const [end, setEnd] = useState(range.end);
   const [compare, setCompare] = useState<CompareMode>("prior_year");
   const [compareEnabled, setCompareEnabled] = useState(true);
+  const [businessUnits, setBusinessUnits] = useState<BusinessUnitOption[]>([]);
+  const [businessUnit, setBusinessUnit] = useState("all");
   const [data, setData] = useState<BrandedSearchResponse | null>(null);
   const [tiktokSeries, setTiktokSeries] = useState<TikTokPoint[] | null>(null);
   const [tiktokMessage, setTiktokMessage] = useState<string>();
@@ -39,7 +43,7 @@ export default function App() {
     setError(null);
     try {
       const [gsc, tiktok] = await Promise.all([
-        fetchBrandedSearch(start, end, compareEnabled ? compare : "prior_year"),
+        fetchBrandedSearch(start, end, compareEnabled ? compare : "prior_year", businessUnit),
         showTiktok ? fetchTikTokMetrics(start, end) : Promise.resolve(null),
       ]);
       setData(gsc);
@@ -63,13 +67,30 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [authenticated, start, end, compare, compareEnabled, showTiktok]);
+  }, [authenticated, start, end, compare, compareEnabled, showTiktok, businessUnit]);
 
   useEffect(() => {
     fetchAuthStatus().then((ok) => {
       setAuthenticated(ok);
       setAuthChecked(true);
     });
+  }, []);
+
+  useEffect(() => {
+    fetchBusinessUnits()
+      .then((units) => {
+        if (units.length === 0) {
+          setBusinessUnits([{ id: "all", label: "all", keywordCount: 0 }]);
+          return;
+        }
+        setBusinessUnits(units);
+        if (!units.some((u) => u.id === businessUnit)) {
+          setBusinessUnit(units[0].id);
+        }
+      })
+      .catch(() => {
+        setBusinessUnits([{ id: "all", label: "all", keywordCount: 0 }]);
+      });
   }, []);
 
   useEffect(() => {
@@ -152,11 +173,14 @@ export default function App() {
               end={end}
               compare={compare}
               compareEnabled={compareEnabled}
+              businessUnit={businessUnit}
+              businessUnits={businessUnits}
               loading={loading}
               onStartChange={setStart}
               onEndChange={setEnd}
               onCompareChange={setCompare}
               onCompareEnabledChange={setCompareEnabled}
+              onBusinessUnitChange={setBusinessUnit}
               onApply={handleApply}
             />
 

@@ -1,4 +1,4 @@
-import type { CompareMode } from "../lib/api";
+import type { BusinessUnitOption, CompareMode } from "../lib/api";
 import { formatDisplayDate } from "../lib/dates";
 
 interface DateControlsProps {
@@ -6,11 +6,14 @@ interface DateControlsProps {
   end: string;
   compare: CompareMode;
   compareEnabled: boolean;
+  businessUnit: string;
+  businessUnits: BusinessUnitOption[];
   loading: boolean;
   onStartChange: (v: string) => void;
   onEndChange: (v: string) => void;
   onCompareChange: (v: CompareMode) => void;
   onCompareEnabledChange: (v: boolean) => void;
+  onBusinessUnitChange: (v: string) => void;
   onApply: () => void;
 }
 
@@ -19,11 +22,14 @@ export function DateControls({
   end,
   compare,
   compareEnabled,
+  businessUnit,
+  businessUnits,
   loading,
   onStartChange,
   onEndChange,
   onCompareChange,
   onCompareEnabledChange,
+  onBusinessUnitChange,
   onApply,
 }: DateControlsProps) {
   return (
@@ -51,6 +57,21 @@ export function DateControls({
             onChange={(e) => onEndChange(e.target.value)}
             className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-[var(--color-text)]"
           />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="text-[var(--color-muted)]">Business unit</span>
+          <select
+            value={businessUnit}
+            onChange={(e) => onBusinessUnitChange(e.target.value)}
+            className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-[var(--color-text)]"
+          >
+            {businessUnits.length === 0 && <option value="all">all</option>}
+            {businessUnits.map((unit) => (
+              <option key={unit.id} value={unit.id}>
+                {unit.label} ({unit.keywordCount})
+              </option>
+            ))}
+          </select>
         </label>
         <label className="flex items-center gap-2 text-sm">
           <input
@@ -85,6 +106,7 @@ export function DateControls({
       </div>
       <p className="mt-3 text-xs text-[var(--color-muted)]">
         Showing {formatDisplayDate(start)} – {formatDisplayDate(end)}
+        {` · Business unit: ${businessUnit}`}
         {compareEnabled &&
           (compare === "prior_year"
             ? " vs same range last year"

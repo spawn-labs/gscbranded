@@ -20,6 +20,7 @@ export interface BrandedSearchResponse {
   delta: number;
   deltaPct: number | null;
   siteUrl?: string;
+  businessUnit?: string;
 }
 
 export interface TikTokPoint {
@@ -34,6 +35,12 @@ export type CompareMode = "prior_year" | "prior_period";
 
 export type TikTokMetric = "followers" | "views" | "likes" | "engagement";
 
+export interface BusinessUnitOption {
+  id: string;
+  label: string;
+  keywordCount: number;
+}
+
 export async function fetchAuthStatus(): Promise<boolean> {
   const res = await fetch("/api/auth/status");
   const data = (await res.json()) as { authenticated: boolean };
@@ -44,14 +51,24 @@ export async function fetchBrandedSearch(
   start: string,
   end: string,
   compare: CompareMode,
+  businessUnit: string,
 ): Promise<BrandedSearchResponse> {
-  const params = new URLSearchParams({ start, end, compare });
+  const params = new URLSearchParams({ start, end, compare, businessUnit });
   const res = await fetch(`/api/gsc/branded-search?${params}`);
   const data = await res.json();
   if (!res.ok) {
     throw new Error(data.error ?? "Failed to load search data");
   }
   return data as BrandedSearchResponse;
+}
+
+export async function fetchBusinessUnits(): Promise<BusinessUnitOption[]> {
+  const res = await fetch("/api/gsc/business-units");
+  const data = (await res.json()) as { units: BusinessUnitOption[]; error?: string };
+  if (!res.ok) {
+    throw new Error(data.error ?? "Failed to load business units");
+  }
+  return data.units;
 }
 
 export async function fetchTikTokMetrics(

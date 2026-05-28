@@ -1,6 +1,7 @@
 import {
   fetchBrandedSearchByDate,
   getValidAccessToken,
+  getKeywordsForBusinessUnit,
 } from "../../lib/google";
 import {
   defaultRange,
@@ -24,6 +25,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const start = url.searchParams.get("start") ?? defaults.start;
   const end = url.searchParams.get("end") ?? defaults.end;
   const compare = (url.searchParams.get("compare") ?? "prior_year") as CompareMode;
+  const businessUnit = url.searchParams.get("businessUnit") ?? "all";
 
   const dateRe = /^\d{4}-\d{2}-\d{2}$/;
   if (!dateRe.test(start) || !dateRe.test(end) || start > end) {
@@ -40,6 +42,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   try {
     let accessToken = await getValidAccessToken(session, context.env);
+    const keywords = getKeywordsForBusinessUnit(context.env, businessUnit);
+    if (keywords.length === 0) {
+      return Response.json(
+        { error: `No branded keywords configured for business unit '${businessUnit}'.` },
+        { status: 400 },
+      );
+    }
     const headers: Record<string, string> = { "Content-Type": "application/json" };
 
     const refreshed = session.expiresAt <= Date.now() + 60_000 && session.refreshToken;
@@ -57,8 +66,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     const [currentMap, compareMap] = await Promise.all([
-      fetchBrandedSearchByDate(accessToken, context.env, start, end),
-      fetchBrandedSearchByDate(accessToken, context.env, compareStart, compareEnd),
+      fetchBrandedSearchByDate(accessToken, context.env, start, end, keywords),
+      fetchBrandedSearchByDate(accessToken, context.env, compareStart, compareEnd, keywords),
     ]);
 
     const current = seriesFromMap(currentMap, start, end);
@@ -83,6 +92,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         delta,
         deltaPct,
         siteUrl: context.env.GSC_SITE_URL,
+        businessUnit,
       },
       { headers },
     );

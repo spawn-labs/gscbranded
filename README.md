@@ -5,6 +5,7 @@ Graph and table view of **branded search clicks** from Google Search Console, wi
 ## Features
 
 - Line chart of daily branded search clicks (queries matching your keyword list)
+- Business unit dropdown to filter all charts/tables by that unit's branded terms
 - Compare current range to **prior year (same dates)** or **previous period (same length)**
 - Summary table with totals and delta
 - TikTok overlay (demo data until you add API credentials)
@@ -36,8 +37,21 @@ Edit `.dev.vars` with values from your Google Cloud OAuth client (the JSON in th
 | `GOOGLE_CLIENT_SECRET` | OAuth client secret |
 | `OAUTH_REDIRECT_URI` | `http://localhost:8788/api/auth/callback` for local dev |
 | `GSC_SITE_URL` | Property in Search Console, e.g. `sc-domain:yoursite.com` or `https://www.yoursite.com/` |
-| `BRANDED_KEYWORDS` | Comma-separated terms matched against queries (regex OR) |
+| `BRANDED_KEYWORDS` | Legacy single keyword list (optional, best for small sets) |
+| `BUSINESS_UNIT_KEYWORDS_JSON` | Preferred JSON mapping: business unit -> keyword list |
 | `SESSION_SECRET` | Random string for signing session cookies |
+Example `BUSINESS_UNIT_KEYWORDS_JSON`:
+
+```json
+{
+  "all": ["spawn labs", "spawnlabs"],
+  "consumer": ["requisite vibes", "rv audio"],
+  "enterprise": ["spawnlabs ai", "spawn labs platform"]
+}
+```
+
+Store that JSON as a single-line value in `.dev.vars` / Cloudflare Variables and Secrets.
+
 
 ### 3. Google Cloud Console setup
 
@@ -106,5 +120,5 @@ branded-search-explorer/
 │   └── api/tiktok/     # TikTok metrics (stub/demo)
 ├── src/                # React + Tailwind + Chart.js
 ├── dist/               # Build output (deploy this + functions/)
-└── wrangler.toml
+└── .env.example
 ```
