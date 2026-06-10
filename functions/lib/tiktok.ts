@@ -1,6 +1,6 @@
 import { formatIsoDate, shiftDays } from "./dates";
 
-const OAUTH_AUTHORIZE_URL = "https://business-api.tiktok.com/open_api/v1.2/oauth2/authorize/";
+const OAUTH_AUTHORIZE_URL = "https://open-api.tiktok.com/platform/oauth/connect";
 const OAUTH_TOKEN_URL = "https://business-api.tiktok.com/open_api/v1.2/oauth2/access_token/";
 const API_BASE_URL = "https://open.tiktokapis.com/v1.2";
 
