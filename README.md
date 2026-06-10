@@ -108,7 +108,13 @@ npm run pages:deploy
 
 ## TikTok (later)
 
-Set `TIKTOK_ACCESS_TOKEN` in environment variables and extend `functions/api/tiktok/metrics.ts` with your TikTok Business/API calls. Until then, **Show TikTok** uses deterministic sample data so you can test the overlay UI.
+1. Set `TIKTOK_CLIENT_KEY` and `TIKTOK_CLIENT_SECRET` in Cloudflare environment variables.
+2. Register the callback URL in your TikTok app:
+   - `https://gscbranded.pages.dev/api/tiktok/callback`
+3. Visit `/api/tiktok/oauth` on your deployed site to start the consent flow.
+4. After authorization, copy the returned `access_token` and `open_id` values into Cloudflare as `TIKTOK_ACCESS_TOKEN` and `TIKTOK_OPEN_ID`.
+
+Once those values are set, the app will fetch live TikTok metrics for the connected account.
 
 ## Project structure
 

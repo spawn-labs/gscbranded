@@ -1,4 +1,5 @@
 import { seriesFromMap, shiftDays } from "../../lib/dates";
+import { fetchTikTokSeries } from "../../lib/tiktok";
 
 /** TikTok metrics — returns demo data until TIKTOK_ACCESS_TOKEN is configured. */
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -10,16 +11,45 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     return Response.json({ error: "start and end dates required (YYYY-MM-DD)" }, { status: 400 });
   }
 
-  const hasToken = !!context.env.TIKTOK_ACCESS_TOKEN;
+  const accessToken = context.env.TIKTOK_ACCESS_TOKEN;
+  if (accessToken) {
+    const analyticsEndpoint = context.env.TIKTOK_ANALYTICS_ENDPOINT;
+    if (analyticsEndpoint) {
+      const params = new URLSearchParams({ start, end });
+      const proxyUrl = analyticsEndpoint.includes("?")
+        ? `${analyticsEndpoint}&${params}`
+        : `${analyticsEndpoint}?${params}`;
+      const proxyRes = await fetch(proxyUrl, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
 
-  if (hasToken) {
-    // Placeholder for real TikTok Business/API integration when credentials are provided
-    return Response.json({
-      source: "tiktok",
-      configured: true,
-      message: "TikTok token is set; wire your preferred TikTok analytics endpoint here.",
-      series: [],
-    });
+      if (!proxyRes.ok) {
+        const bodyText = await proxyRes.text();
+        return Response.json(
+          { error: `TikTok analytics endpoint returned ${proxyRes.status}: ${bodyText}` },
+          { status: 502 },
+        );
+      }
+
+      const payload = await proxyRes.json();
+      return Response.json(payload);
+    }
+
+    try {
+      const series = await fetchTikTokSeries(accessToken, context.env, start, end);
+      return Response.json({
+        source: "tiktok",
+        configured: true,
+        message: "Live TikTok metrics from TikTok Business API.",
+        series,
+      });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Unknown error";
+      return Response.json({ error: message }, { status: 502 });
+    }
   }
 
   // Deterministic demo series so overlay UI can be tested without credentials

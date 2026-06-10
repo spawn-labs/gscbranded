@@ -7,4 +7,9 @@ interface Env {
   BUSINESS_UNIT_KEYWORDS_JSON?: string;
   SESSION_SECRET?: string;
   TIKTOK_ACCESS_TOKEN?: string;
+  TIKTOK_ANALYTICS_ENDPOINT?: string;
+  TIKTOK_CLIENT_KEY?: string;
+  TIKTOK_CLIENT_SECRET?: string;
+  TIKTOK_OPEN_ID?: string;
+  TIKTOK_OAUTH_REDIRECT_URI?: string;
 }
