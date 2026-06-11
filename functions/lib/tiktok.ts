@@ -101,7 +101,7 @@ export function tiktokAuthUrl(env: Env, state: string, redirectUri: string): str
     client_key: env.TIKTOK_CLIENT_KEY,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: "user.info.basic video.list video.data",
+    scope: "user.info.basic user.info.profile video.list",
     state,
   });
   return `${OAUTH_AUTHORIZE_URL}?${params.toString().replace(/\+/g, "%20")}`;
