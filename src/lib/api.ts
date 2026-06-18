@@ -35,6 +35,17 @@ export type CompareMode = "prior_year" | "prior_period";
 
 export type TikTokMetric = "followers" | "views" | "likes" | "engagement";
 
+export interface TikTokStatus {
+  oauthReady: boolean;
+  metricsReady: boolean;
+  hasAccessToken: boolean;
+  hasRefreshToken: boolean;
+  hasOpenId: boolean;
+  redirectUri: string | null;
+  missing: string[];
+  connectUrl: string | null;
+}
+
 export interface BusinessUnitOption {
   id: string;
   label: string;
@@ -69,6 +80,15 @@ export async function fetchBusinessUnits(): Promise<BusinessUnitOption[]> {
     throw new Error(data.error ?? "Failed to load business units");
   }
   return data.units;
+}
+
+export async function fetchTikTokStatus(): Promise<TikTokStatus> {
+  const res = await fetch("/api/tiktok/status");
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error ?? "Failed to load TikTok status");
+  }
+  return data as TikTokStatus;
 }
 
 export async function fetchTikTokMetrics(

@@ -1,4 +1,5 @@
-import type { TikTokMetric } from "../lib/api";
+import { useEffect, useState } from "react";
+import { fetchTikTokStatus, type TikTokMetric, type TikTokStatus } from "../lib/api";
 
 const METRIC_OPTIONS: { id: TikTokMetric; label: string }[] = [
   { id: "followers", label: "Followers" },
@@ -22,6 +23,14 @@ export function TikTokPanel({
   onSelectedChange,
   tiktokMessage,
 }: TikTokPanelProps) {
+  const [status, setStatus] = useState<TikTokStatus | null>(null);
+
+  useEffect(() => {
+    fetchTikTokStatus()
+      .then(setStatus)
+      .catch(() => setStatus(null));
+  }, []);
+
   const toggleMetric = (m: TikTokMetric) => {
     if (selected.includes(m)) {
       onSelectedChange(selected.filter((x) => x !== m));
@@ -29,6 +38,12 @@ export function TikTokPanel({
       onSelectedChange([...selected, m]);
     }
   };
+
+  const connectionLabel = status?.metricsReady
+    ? "Live TikTok account connected"
+    : status?.oauthReady
+      ? "OAuth ready — connect Target User"
+      : "TikTok not configured on server";
 
   return (
     <section className="rounded-2xl border border-[var(--color-border)] bg-gradient-to-br from-[var(--color-surface)] to-[var(--color-surface-2)]/80 p-4 sm:p-6">
@@ -39,14 +54,32 @@ export function TikTokPanel({
             Layer TikTok metrics on the branded search chart
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => onShowChange(!show)}
-          className="rounded-lg border border-[var(--color-accent-2)]/50 bg-[var(--color-accent-2)]/10 px-4 py-2 text-sm font-medium text-[var(--color-accent-2)] transition hover:bg-[var(--color-accent-2)]/20"
-        >
-          {show ? "Hide TikTok" : "Show TikTok"}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {status?.connectUrl && !status.metricsReady && (
+            <a
+              href={status.connectUrl}
+              className="rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-text)] transition hover:border-[var(--color-accent-2)]"
+            >
+              Connect TikTok
+            </a>
+          )}
+          <button
+            type="button"
+            onClick={() => onShowChange(!show)}
+            className="rounded-lg border border-[var(--color-accent-2)]/50 bg-[var(--color-accent-2)]/10 px-4 py-2 text-sm font-medium text-[var(--color-accent-2)] transition hover:bg-[var(--color-accent-2)]/20"
+          >
+            {show ? "Hide TikTok" : "Show TikTok"}
+          </button>
+        </div>
       </div>
+
+      {status && (
+        <p className="mt-3 text-xs text-[var(--color-muted)]">
+          {connectionLabel}
+          {status.redirectUri ? ` · Redirect: ${status.redirectUri}` : ""}
+        </p>
+      )}
+
       {show && (
         <div className="mt-4 flex flex-wrap gap-3">
           {METRIC_OPTIONS.map((opt) => (

@@ -1,7 +1,7 @@
 import { seriesFromMap, shiftDays } from "../../lib/dates";
-import { fetchTikTokSeries } from "../../lib/tiktok";
+import { fetchTikTokSeriesWithRefresh, tiktokConfigured } from "../../lib/tiktok";
 
-/** TikTok metrics — returns demo data until TIKTOK_ACCESS_TOKEN is configured. */
+/** TikTok metrics — returns demo data until TikTok credentials are configured. */
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
   const start = url.searchParams.get("start");
@@ -11,10 +11,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     return Response.json({ error: "start and end dates required (YYYY-MM-DD)" }, { status: 400 });
   }
 
-  const accessToken = context.env.TIKTOK_ACCESS_TOKEN;
-  if (accessToken) {
+  const { metricsReady } = tiktokConfigured(context.env);
+  if (metricsReady) {
     const analyticsEndpoint = context.env.TIKTOK_ANALYTICS_ENDPOINT;
-    if (analyticsEndpoint) {
+    const accessToken = context.env.TIKTOK_ACCESS_TOKEN;
+    if (analyticsEndpoint && accessToken) {
       const params = new URLSearchParams({ start, end });
       const proxyUrl = analyticsEndpoint.includes("?")
         ? `${analyticsEndpoint}&${params}`
@@ -39,12 +40,22 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     try {
-      const series = await fetchTikTokSeries(accessToken, context.env, start, end);
+      const { series, refreshed } = await fetchTikTokSeriesWithRefresh(context.env, start, end);
       return Response.json({
         source: "tiktok",
         configured: true,
-        message: "Live TikTok metrics from TikTok Business API.",
+        message: refreshed
+          ? "Live TikTok metrics loaded. Access token was refreshed — update TIKTOK_ACCESS_TOKEN in Cloudflare if you store it manually."
+          : "Live TikTok metrics from TikTok Login Kit.",
         series,
+        tokenRefresh: refreshed
+          ? {
+              access_token: refreshed.access_token,
+              refresh_token: refreshed.refresh_token,
+              expires_in: refreshed.expires_in,
+              open_id: refreshed.open_id,
+            }
+          : undefined,
       });
     } catch (e) {
       const message = e instanceof Error ? e.message : "Unknown error";
@@ -52,7 +63,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
   }
 
-  // Deterministic demo series so overlay UI can be tested without credentials
   const seed = start.split("-").join("");
   const map: Record<string, { followers: number; views: number; likes: number; engagement: number }> = {};
   let cur = start;
@@ -84,7 +94,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   return Response.json({
     source: "demo",
     configured: false,
-    message: "Showing sample TikTok data. Add TIKTOK_ACCESS_TOKEN to enable live metrics.",
+    message:
+      "Showing sample TikTok data. Complete OAuth at /api/tiktok/oauth, then add TIKTOK_ACCESS_TOKEN (or TIKTOK_REFRESH_TOKEN) and TIKTOK_OPEN_ID to Cloudflare.",
     series,
   });
 };

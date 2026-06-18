@@ -106,15 +106,50 @@ npm run pages:deploy
 - No app user accounts — only Google OAuth for API access
 - Do **not** commit `.dev.vars`, `.env`, or `client_secret*.json`
 
-## TikTok (later)
+## TikTok
 
-1. Set `TIKTOK_CLIENT_KEY` and `TIKTOK_CLIENT_SECRET` in Cloudflare environment variables.
-2. Register the callback URL in your TikTok app:
+Connect a TikTok account (Sandbox **Target User**) to overlay followers, video views, likes, and engagement on the chart.
+
+### 1. TikTok Developer Portal
+
+In [TikTok for Developers](https://developers.tiktok.com/) → your app:
+
+1. **Login Kit** → Web → redirect URI:
    - `https://gscbranded.pages.dev/api/tiktok/callback`
-3. Visit `/api/tiktok/oauth` on your deployed site to start the consent flow.
-4. After authorization, copy the returned `access_token` and `open_id` values into Cloudflare as `TIKTOK_ACCESS_TOKEN` and `TIKTOK_OPEN_ID`.
+2. **Scopes**: `user.info.basic`, `user.info.profile`, `user.info.stats`, `video.list`
+3. Add your TikTok account as a **Target User** (Sandbox)
+4. Copy **Client key** and **Client secret** from the app credentials
 
-Once those values are set, the app will fetch live TikTok metrics for the connected account.
+### 2. Cloudflare environment variables
+
+Under **Pages → Settings → Variables and Secrets** (Production):
+
+| Variable | Description |
+|----------|-------------|
+| `TIKTOK_CLIENT_KEY` | App client key |
+| `TIKTOK_CLIENT_SECRET` | App client secret |
+| `TIKTOK_OAUTH_REDIRECT_URI` | `https://gscbranded.pages.dev/api/tiktok/callback` |
+
+For local dev, add the same keys to `.dev.vars`. Use `http://localhost:8788/api/tiktok/callback` as redirect URI only if you register that URL in TikTok too.
+
+### 3. Authorize the Target User
+
+1. Deploy (or run `npm run pages:dev` after `npm run build`)
+2. Open **`https://gscbranded.pages.dev/api/tiktok/oauth`**
+3. Log in as the Target User and approve the requested scopes
+4. TikTok redirects to `/api/tiktok/callback` — copy the JSON `cloudflare_variables` block into Cloudflare:
+
+| Variable | Description |
+|----------|-------------|
+| `TIKTOK_ACCESS_TOKEN` | Short-lived token (~24h) |
+| `TIKTOK_REFRESH_TOKEN` | Long-lived token — app auto-refreshes access when API calls fail |
+| `TIKTOK_OPEN_ID` | TikTok user ID for the connected account |
+
+5. Redeploy or wait for env vars to apply, then enable **Show TikTok** in the app
+
+Check connection status: `GET /api/tiktok/status`
+
+**Note:** TikTok access tokens expire after ~24 hours. Store `TIKTOK_REFRESH_TOKEN` so metrics keep working without repeating OAuth.
 
 ## Project structure
 
@@ -123,7 +158,7 @@ branded-search-explorer/
 ├── functions/          # Cloudflare Pages Functions (API)
 │   ├── api/auth/       # OAuth flow
 │   ├── api/gsc/        # Search Console proxy
-│   └── api/tiktok/     # TikTok metrics (stub/demo)
+│   └── api/tiktok/     # TikTok OAuth + metrics
 ├── src/                # React + Tailwind + Chart.js
 ├── dist/               # Build output (deploy this + functions/)
 └── .env.example
