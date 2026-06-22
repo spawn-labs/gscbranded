@@ -39,6 +39,15 @@ interface BrandedSearchChartProps {
   loading: boolean;
 }
 
+function alignTikTokToLabels(
+  labels: string[],
+  series: TikTokPoint[],
+  metric: TikTokMetric,
+): (number | null)[] {
+  const map = new Map(series.map((p) => [p.date, p[metric]]));
+  return labels.map((d) => map.get(d) ?? null);
+}
+
 export function BrandedSearchChart({
   data,
   compareEnabled,
@@ -102,7 +111,7 @@ export function BrandedSearchChart({
     for (const metric of tiktokMetrics) {
       datasets.push({
         label: `TikTok ${metric}`,
-        data: tiktokSeries.map((point) => ({ x: formatDisplayDate(point.date), y: point[metric] })),
+        data: alignTikTokToLabels(labels, tiktokSeries, metric),
         borderColor: TIKTOK_COLORS[metric],
         fill: false,
         tension: 0.3,
@@ -160,7 +169,6 @@ export function BrandedSearchChart({
               ...(hasTikTok
                 ? {
                     y1: {
-                      type: "linear",
                       position: "right",
                       title: { display: true, text: "TikTok", color: "#94a3b8" },
                       ticks: { color: "#64748b" },
