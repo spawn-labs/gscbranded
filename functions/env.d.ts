@@ -12,5 +12,6 @@ interface Env {
   TIKTOK_CLIENT_KEY?: string;
   TIKTOK_CLIENT_SECRET?: string;
   TIKTOK_OPEN_ID?: string;
+  TIKTOK_FOLLOWER_HISTORY_URL?: string;
   TIKTOK_OAUTH_REDIRECT_URI?: string;
 }

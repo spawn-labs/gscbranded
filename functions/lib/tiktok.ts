@@ -34,6 +34,62 @@ interface TikTokApiError {
   log_id?: string;
 }
 
+interface FollowerHistoryEntry {
+  date: string;
+  follower_count: number;
+}
+
+interface FollowerHistoryFile {
+  user_id: string;
+  data: FollowerHistoryEntry[];
+}
+
+async function loadFollowerHistory(
+  url: string,
+  expectedUserId: string,
+): Promise<FollowerHistoryEntry[]> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      return [];
+    }
+
+    const payload = (await res.json()) as FollowerHistoryFile;
+    if (payload?.user_id !== expectedUserId || !Array.isArray(payload.data)) {
+      return [];
+    }
+
+    return payload.data.filter(
+      (entry): entry is FollowerHistoryEntry =>
+        typeof entry?.date === "string" && typeof entry?.follower_count === "number",
+    );
+  } catch {
+    return [];
+  }
+}
+
+function buildFollowerCountMap(
+  entries: FollowerHistoryEntry[],
+  start: string,
+  end: string,
+  currentCount: number,
+): Map<string, number> {
+  const map = new Map(entries.map((item) => [item.date, item.follower_count]));
+  let lastKnownCount = currentCount;
+  let curDate = start;
+
+  while (curDate <= end) {
+    if (map.has(curDate)) {
+      lastKnownCount = map.get(curDate)!;
+    } else {
+      map.set(curDate, lastKnownCount);
+    }
+    curDate = shiftDays(curDate, 1);
+  }
+
+  return map;
+}
+
 function asNumber(value: unknown): number {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
   if (typeof value === "string") {
@@ -323,6 +379,9 @@ export async function fetchTikTokSeries(
   }
 
   const followerCount = userInfo.follower_count;
+  const historyUrl = env.TIKTOK_FOLLOWER_HISTORY_URL ?? "/tiktok-followers.json";
+  const historyEntries = await loadFollowerHistory(historyUrl, openId);
+  const followerCountMap = buildFollowerCountMap(historyEntries, start, end, followerCount);
   const videoItems = await fetchTikTokVideos(accessToken);
 
   const map: Record<string, { views: number; likes: number; interactions: number }> = {};
@@ -349,7 +408,7 @@ export async function fetchTikTokSeries(
       const engagement = entry.views > 0 ? Math.round((entry.interactions / entry.views) * 100) : 0;
       return {
         date,
-        followers: followerCount,
+        followers: followerCountMap.get(date) ?? followerCount,
         views: entry.views,
         likes: entry.likes,
         engagement,

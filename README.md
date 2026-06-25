@@ -129,6 +129,7 @@ Under **Pages → Settings → Variables and Secrets** (Production):
 | `TIKTOK_CLIENT_KEY` | App client key |
 | `TIKTOK_CLIENT_SECRET` | App client secret |
 | `TIKTOK_OAUTH_REDIRECT_URI` | `https://gscbranded.pages.dev/api/tiktok/callback` |
+| `TIKTOK_FOLLOWER_HISTORY_URL` | Optional path or URL for the daily follower history JSON (default: `/tiktok-followers.json`) |
 
 For local dev, add the same keys to `.dev.vars`. Use `http://localhost:8788/api/tiktok/callback` as redirect URI only if you register that URL in TikTok too.
 
