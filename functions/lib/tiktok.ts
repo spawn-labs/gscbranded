@@ -40,8 +40,8 @@ interface FollowerHistoryEntry {
 }
 
 interface FollowerHistoryFile {
-  user_id: string;
-  data: FollowerHistoryEntry[];
+  user_id?: string;
+  data?: unknown;
 }
 
 async function loadFollowerHistory(
@@ -54,15 +54,29 @@ async function loadFollowerHistory(
       return [];
     }
 
-    const payload = (await res.json()) as FollowerHistoryFile;
-    if (payload?.user_id !== expectedUserId || !Array.isArray(payload.data)) {
-      return [];
-    }
+    const payload = (await res.json()) as FollowerHistoryFile | FollowerHistoryEntry[];
+    const rawEntries = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload.data)
+      ? payload.data
+      : [];
 
-    return payload.data.filter(
+    const entries = rawEntries.filter(
       (entry): entry is FollowerHistoryEntry =>
         typeof entry?.date === "string" && typeof entry?.follower_count === "number",
     );
+
+    if (entries.length === 0) {
+      return [];
+    }
+
+    if (!Array.isArray(payload) && payload.user_id && payload.user_id !== expectedUserId) {
+      console.warn(
+        `TikTok follower history user_id mismatch: expected ${expectedUserId}, got ${payload.user_id}. Using follower history data anyway.`,
+      );
+    }
+
+    return entries;
   } catch {
     return [];
   }
