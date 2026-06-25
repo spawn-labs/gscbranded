@@ -47,9 +47,15 @@ interface FollowerHistoryFile {
 async function loadFollowerHistory(
   url: string,
   expectedUserId: string,
+  baseRequestUrl?: string,
 ): Promise<FollowerHistoryEntry[]> {
   try {
-    const res = await fetch(url);
+    let resolvedUrl = url;
+    if (baseRequestUrl && url.startsWith("/")) {
+      resolvedUrl = new URL(url, baseRequestUrl).toString();
+    }
+
+    const res = await fetch(resolvedUrl);
     if (!res.ok) {
       return [];
     }
@@ -383,6 +389,7 @@ export async function fetchTikTokSeries(
   env: Env,
   start: string,
   end: string,
+  baseRequestUrl?: string,
 ): Promise<TikTokPoint[]> {
   const userInfo = await fetchTikTokUserInfo(accessToken);
   const openId = env.TIKTOK_OPEN_ID ?? userInfo.open_id;
@@ -394,7 +401,7 @@ export async function fetchTikTokSeries(
 
   const followerCount = userInfo.follower_count;
   const historyUrl = env.TIKTOK_FOLLOWER_HISTORY_URL ?? "/tiktok-followers.json";
-  const historyEntries = await loadFollowerHistory(historyUrl, openId);
+  const historyEntries = await loadFollowerHistory(historyUrl, openId, baseRequestUrl);
   const followerCountMap = buildFollowerCountMap(historyEntries, start, end, followerCount);
   const videoItems = await fetchTikTokVideos(accessToken);
 
@@ -434,11 +441,12 @@ export async function fetchTikTokSeriesWithRefresh(
   env: Env,
   start: string,
   end: string,
+  baseRequestUrl?: string,
 ): Promise<{ series: TikTokPoint[]; refreshed?: TikTokTokenResponse }> {
   let accessToken = await resolveAccessToken(env);
 
   try {
-    return { series: await fetchTikTokSeries(accessToken, env, start, end) };
+    return { series: await fetchTikTokSeries(accessToken, env, start, end, baseRequestUrl) };
   } catch (firstError) {
     if (!env.TIKTOK_REFRESH_TOKEN) {
       throw firstError;
@@ -446,7 +454,7 @@ export async function fetchTikTokSeriesWithRefresh(
 
     const refreshed = await refreshAccessToken(env);
     accessToken = refreshed.access_token;
-    const series = await fetchTikTokSeries(accessToken, env, start, end);
+    const series = await fetchTikTokSeries(accessToken, env, start, end, baseRequestUrl);
     return { series, refreshed };
   }
 }

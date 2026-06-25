@@ -40,7 +40,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     try {
-      const { series, refreshed } = await fetchTikTokSeriesWithRefresh(context.env, start, end);
+      const { series, refreshed } = await fetchTikTokSeriesWithRefresh(
+        context.env,
+        start,
+        end,
+        context.request.url,
+      );
       return Response.json({
         source: "tiktok",
         configured: true,
