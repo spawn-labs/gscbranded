@@ -6,7 +6,7 @@
   "kv_namespaces": [
     {
       "binding": "TIKTOK_HISTORY_KV",
-      "id": "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+      "id": "835f15619ff5429db1491e9bbebb3686"
     }
   ],
   "triggers": {
