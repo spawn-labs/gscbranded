@@ -150,6 +150,23 @@ For local dev, add the same keys to `.dev.vars`. Use `http://localhost:8788/api/
 
 Check connection status: `GET /api/tiktok/status`
 
+### 4. Daily follower history refresh with KV
+
+1. Create a KV namespace in Cloudflare:
+   - Workers & Pages → KV → Create namespace
+   - Example name: `gscbranded-tiktok-history`
+2. Copy the namespace ID into [gscbranded/wrangler.jsonc](gscbranded/wrangler.jsonc).
+3. Deploy the Worker:
+   - `npx wrangler deploy --config wrangler.jsonc`
+4. Add the same TikTok env vars to the Worker (not just Pages):
+   - `TIKTOK_ACCESS_TOKEN` or `TIKTOK_REFRESH_TOKEN`
+   - `TIKTOK_CLIENT_KEY`
+   - `TIKTOK_CLIENT_SECRET`
+   - `TIKTOK_OPEN_ID`
+5. Trigger the refresh once manually:
+   - `npx wrangler invoke --config wrangler.jsonc --remote`
+6. The app will read from KV first, and fall back to [gscbranded/public/tiktok-followers.json](gscbranded/public/tiktok-followers.json) if KV is unavailable.
+
 **Note:** TikTok access tokens expire after ~24 hours. Store `TIKTOK_REFRESH_TOKEN` so metrics keep working without repeating OAuth.
 
 ## Project structure

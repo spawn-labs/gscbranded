@@ -400,8 +400,30 @@ export async function fetchTikTokSeries(
   }
 
   const followerCount = userInfo.follower_count;
-  const historyUrl = env.TIKTOK_FOLLOWER_HISTORY_URL ?? "/tiktok-followers.json";
-  const historyEntries = await loadFollowerHistory(historyUrl, openId, baseRequestUrl);
+  const kv = env.TIKTOK_HISTORY_KV;
+  let historyEntries: FollowerHistoryEntry[] = [];
+
+  if (kv) {
+    try {
+      const stored = await kv.get("history", { type: "json" });
+      const payload = stored as { data?: unknown } | null;
+      const entries = Array.isArray(payload?.data)
+        ? (payload?.data as FollowerHistoryEntry[])
+        : [];
+      historyEntries = entries.filter(
+        (entry): entry is FollowerHistoryEntry =>
+          typeof entry?.date === "string" && typeof entry?.follower_count === "number",
+      );
+    } catch {
+      historyEntries = [];
+    }
+  }
+
+  if (historyEntries.length === 0) {
+    const historyUrl = env.TIKTOK_FOLLOWER_HISTORY_URL ?? "/tiktok-followers.json";
+    historyEntries = await loadFollowerHistory(historyUrl, openId, baseRequestUrl);
+  }
+
   const followerCountMap = buildFollowerCountMap(historyEntries, start, end, followerCount);
   const videoItems = await fetchTikTokVideos(accessToken);
 

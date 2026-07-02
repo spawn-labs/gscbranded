@@ -14,4 +14,5 @@ interface Env {
   TIKTOK_OPEN_ID?: string;
   TIKTOK_FOLLOWER_HISTORY_URL?: string;
   TIKTOK_OAUTH_REDIRECT_URI?: string;
+  TIKTOK_HISTORY_KV?: KVNamespace;
 }
