@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "tsc --noEmit -p tsconfig.app.json && vite build",
     "preview": "vite preview",
-    "pages:dev": "wrangler pages dev dist --compatibility-date=2024-09-23",
+    "pages:dev": "wrangler pages dev dist --compatibility-date=2024-09-23 --kv=TIKTOK_FOLLOWERS_KV",
     "pages:deploy": "npm run build && wrangler pages deploy dist"
   },
   "dependencies": {

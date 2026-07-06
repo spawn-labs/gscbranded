@@ -129,7 +129,7 @@ Under **Pages → Settings → Variables and Secrets** (Production):
 | `TIKTOK_CLIENT_KEY` | App client key |
 | `TIKTOK_CLIENT_SECRET` | App client secret |
 | `TIKTOK_OAUTH_REDIRECT_URI` | `https://gscbranded.pages.dev/api/tiktok/callback` |
-| `TIKTOK_FOLLOWER_HISTORY_URL` | Optional path or URL for the daily follower history JSON (default: `/tiktok-followers.json`) |
+| `TIKTOK_FOLLOWER_HISTORY_URL` | Fallback only — ignored once `TIKTOK_FOLLOWERS_KV` is bound. Optional path/URL for a static follower history JSON (default: `/tiktok-followers.json`) |
 
 For local dev, add the same keys to `.dev.vars`. Use `http://localhost:8788/api/tiktok/callback` as redirect URI only if you register that URL in TikTok too.
 
@@ -151,6 +151,62 @@ For local dev, add the same keys to `.dev.vars`. Use `http://localhost:8788/api/
 Check connection status: `GET /api/tiktok/status`
 
 **Note:** TikTok access tokens expire after ~24 hours. Store `TIKTOK_REFRESH_TOKEN` so metrics keep working without repeating OAuth.
+
+### 4. Daily follower snapshots (Cloudflare KV + GitHub Actions)
+
+TikTok's API only returns the *current* follower count — there's no historical endpoint. Daily
+history is recorded by a protected endpoint (`POST /api/tiktok/snapshot`) that fetches today's
+count and appends it to a Cloudflare KV namespace. A scheduled GitHub Actions workflow
+(`.github/workflows/tiktok-follower-snapshot.yml`) calls that endpoint once a day, since Cloudflare
+Pages Functions have no native Cron Trigger (that's a Workers-only feature).
+
+**Create and bind the KV namespace (Cloudflare dashboard):**
+
+1. **Storage & Databases → KV** → **Create namespace** → name it something like
+   `tiktok-followers` → Create
+2. Go to your Pages project → **Settings → Functions → KV namespace bindings** → **Add binding**
+3. Variable name: `TIKTOK_FOLLOWERS_KV` (must match exactly — this is the binding name the code
+   looks up)
+4. Namespace: the one you just created
+5. Save — this applies on the next deploy (Retry deployment if needed)
+
+**Set the shared secret (Cloudflare dashboard):**
+
+Under **Pages → Settings → Variables and Secrets** (Production), add:
+
+| Variable | Description |
+|----------|--------------|
+| `TIKTOK_SNAPSHOT_SECRET` | Random string (e.g. `openssl rand -hex 32`). Required in the `X-Snapshot-Secret` header to call `/api/tiktok/snapshot`. |
+
+**Set the same secret in GitHub:**
+
+Repo → **Settings → Secrets and variables → Actions → New repository secret**
+
+- Name: `TIKTOK_SNAPSHOT_SECRET`
+- Value: the exact same string you put in Cloudflare
+
+**Seed the KV namespace with existing history (one-time, via Wrangler CLI):**
+
+The old `public/tiktok-followers.json` backfill (2026-06-01 through 2026-06-24) would otherwise be
+lost once KV takes over as the source of truth. Push it into KV once:
+
+```bash
+npx wrangler kv key put --remote --namespace-id=<your-namespace-id> "history" \
+  --path=public/tiktok-followers.json
+```
+
+(Find `<your-namespace-id>` on the KV namespace's page in the dashboard, or via
+`npx wrangler kv namespace list`.)
+
+**Verify:**
+
+- `GET /api/tiktok/status` should show `hasFollowersKv: true` and `hasSnapshotSecret: true`
+- Manually trigger the workflow once from **Actions → TikTok follower snapshot → Run workflow**
+  and confirm it returns `"ok": true`
+- After that, it runs daily at 06:10 UTC (`workflow_dispatch` is also enabled for on-demand runs)
+
+Dates before the earliest recorded entry (i.e. before 2026-06-01, until you have more history) are
+shown as 0 followers rather than being backfilled with today's live count.
 
 ## Project structure
 

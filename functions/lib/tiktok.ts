@@ -44,7 +44,51 @@ interface FollowerHistoryFile {
   data?: unknown;
 }
 
-async function loadFollowerHistory(
+const FOLLOWER_HISTORY_KV_KEY = "history";
+
+function parseFollowerHistoryPayload(
+  payload: FollowerHistoryFile | FollowerHistoryEntry[],
+  expectedUserId: string,
+): FollowerHistoryEntry[] {
+  const rawEntries = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload.data)
+    ? payload.data
+    : [];
+
+  const entries = rawEntries.filter(
+    (entry): entry is FollowerHistoryEntry =>
+      typeof entry?.date === "string" && typeof entry?.follower_count === "number",
+  );
+
+  if (entries.length === 0) {
+    return [];
+  }
+
+  if (!Array.isArray(payload) && payload.user_id && payload.user_id !== expectedUserId) {
+    console.warn(
+      `TikTok follower history user_id mismatch: expected ${expectedUserId}, got ${payload.user_id}. Using follower history data anyway.`,
+    );
+  }
+
+  return entries;
+}
+
+async function loadFollowerHistoryFromKV(
+  kv: KVNamespace,
+  expectedUserId: string,
+): Promise<FollowerHistoryEntry[]> {
+  try {
+    const raw = await kv.get(FOLLOWER_HISTORY_KV_KEY);
+    if (!raw) return [];
+    const payload = JSON.parse(raw) as FollowerHistoryFile | FollowerHistoryEntry[];
+    return parseFollowerHistoryPayload(payload, expectedUserId);
+  } catch {
+    return [];
+  }
+}
+
+async function loadFollowerHistoryFromUrl(
   url: string,
   expectedUserId: string,
   baseRequestUrl?: string,
@@ -61,41 +105,51 @@ async function loadFollowerHistory(
     }
 
     const payload = (await res.json()) as FollowerHistoryFile | FollowerHistoryEntry[];
-    const rawEntries = Array.isArray(payload)
-      ? payload
-      : Array.isArray(payload.data)
-      ? payload.data
-      : [];
-
-    const entries = rawEntries.filter(
-      (entry): entry is FollowerHistoryEntry =>
-        typeof entry?.date === "string" && typeof entry?.follower_count === "number",
-    );
-
-    if (entries.length === 0) {
-      return [];
-    }
-
-    if (!Array.isArray(payload) && payload.user_id && payload.user_id !== expectedUserId) {
-      console.warn(
-        `TikTok follower history user_id mismatch: expected ${expectedUserId}, got ${payload.user_id}. Using follower history data anyway.`,
-      );
-    }
-
-    return entries;
+    return parseFollowerHistoryPayload(payload, expectedUserId);
   } catch {
     return [];
   }
+}
+
+async function loadFollowerHistory(
+  env: Env,
+  expectedUserId: string,
+  baseRequestUrl?: string,
+): Promise<FollowerHistoryEntry[]> {
+  if (env.TIKTOK_FOLLOWERS_KV) {
+    return loadFollowerHistoryFromKV(env.TIKTOK_FOLLOWERS_KV, expectedUserId);
+  }
+  const url = env.TIKTOK_FOLLOWER_HISTORY_URL ?? "/tiktok-followers.json";
+  return loadFollowerHistoryFromUrl(url, expectedUserId, baseRequestUrl);
+}
+
+/** Snapshot day for a KV write: appends/overwrites today's entry and returns the updated list. */
+export async function recordFollowerSnapshot(
+  kv: KVNamespace,
+  userId: string,
+  date: string,
+  followerCount: number,
+): Promise<FollowerHistoryEntry[]> {
+  const existing = await loadFollowerHistoryFromKV(kv, userId);
+  const withoutToday = existing.filter((entry) => entry.date !== date);
+  const updated = [...withoutToday, { date, follower_count: followerCount }].sort((a, b) =>
+    a.date < b.date ? -1 : a.date > b.date ? 1 : 0,
+  );
+
+  const payload: FollowerHistoryFile = { user_id: userId, data: updated };
+  await kv.put(FOLLOWER_HISTORY_KV_KEY, JSON.stringify(payload));
+  return updated;
 }
 
 function buildFollowerCountMap(
   entries: FollowerHistoryEntry[],
   start: string,
   end: string,
-  currentCount: number,
 ): Map<string, number> {
   const map = new Map(entries.map((item) => [item.date, item.follower_count]));
-  let lastKnownCount = currentCount;
+  // Dates before the earliest recorded entry have no known follower count — treat as 0
+  // rather than backfilling with today's live count.
+  let lastKnownCount = 0;
   let curDate = start;
 
   while (curDate <= end) {
@@ -400,9 +454,8 @@ export async function fetchTikTokSeries(
   }
 
   const followerCount = userInfo.follower_count;
-  const historyUrl = env.TIKTOK_FOLLOWER_HISTORY_URL ?? "/tiktok-followers.json";
-  const historyEntries = await loadFollowerHistory(historyUrl, openId, baseRequestUrl);
-  const followerCountMap = buildFollowerCountMap(historyEntries, start, end, followerCount);
+  const historyEntries = await loadFollowerHistory(env, openId, baseRequestUrl);
+  const followerCountMap = buildFollowerCountMap(historyEntries, start, end);
   const videoItems = await fetchTikTokVideos(accessToken);
 
   const map: Record<string, { views: number; likes: number; interactions: number }> = {};
@@ -435,6 +488,36 @@ export async function fetchTikTokSeries(
         engagement,
       };
     });
+}
+
+export async function fetchCurrentFollowerCountWithRefresh(
+  env: Env,
+): Promise<{ openId: string; followerCount: number; refreshed?: TikTokTokenResponse }> {
+  let accessToken = await resolveAccessToken(env);
+
+  const resolveOpenId = (userInfo: Awaited<ReturnType<typeof fetchTikTokUserInfo>>) => {
+    const openId = env.TIKTOK_OPEN_ID ?? userInfo.open_id;
+    if (!openId) {
+      throw new Error(
+        "TikTok account ID is not available. Set TIKTOK_OPEN_ID or ensure the token returns an open_id.",
+      );
+    }
+    return openId;
+  };
+
+  try {
+    const userInfo = await fetchTikTokUserInfo(accessToken);
+    return { openId: resolveOpenId(userInfo), followerCount: userInfo.follower_count };
+  } catch (firstError) {
+    if (!env.TIKTOK_REFRESH_TOKEN) {
+      throw firstError;
+    }
+
+    const refreshed = await refreshAccessToken(env);
+    accessToken = refreshed.access_token;
+    const userInfo = await fetchTikTokUserInfo(accessToken);
+    return { openId: resolveOpenId(userInfo), followerCount: userInfo.follower_count, refreshed };
+  }
 }
 
 export async function fetchTikTokSeriesWithRefresh(

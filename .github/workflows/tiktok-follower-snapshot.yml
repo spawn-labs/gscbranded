@@ -1,0 +1,22 @@
+name: TikTok follower snapshot
+
+on:
+  schedule:
+    - cron: "10 6 * * *" # 06:10 UTC daily
+  workflow_dispatch: {}
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record today's follower count
+        run: |
+          status=$(curl -s -o /tmp/response.json -w "%{http_code}" -X POST \
+            "https://gscbranded.pages.dev/api/tiktok/snapshot" \
+            -H "X-Snapshot-Secret: ${{ secrets.TIKTOK_SNAPSHOT_SECRET }}")
+          cat /tmp/response.json
+          echo
+          if [ "$status" -ge 300 ]; then
+            echo "Snapshot request failed with HTTP $status"
+            exit 1
+          fi
