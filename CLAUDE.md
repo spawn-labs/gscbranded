@@ -18,6 +18,7 @@ npm install
 npm run dev
 
 # Full local stack including Functions (requires build first)
+# pages:dev binds the TIKTOK_FOLLOWERS_KV namespace (--kv flag) so follower-history KV reads work locally
 npm run build && npm run pages:dev
 
 # Production build (type-checks first, then vite build)
@@ -74,9 +75,16 @@ file.
 **TikTok integration** (`functions/lib/tiktok.ts`) is independent of the Google OAuth flow and uses
 its own client key/secret and token env vars, refreshed via `fetchTikTokSeriesWithRefresh` (tries
 current `TIKTOK_ACCESS_TOKEN`, falls back to refreshing via `TIKTOK_REFRESH_TOKEN` on failure).
-Follower counts aren't available per-day from TikTok's API, so daily follower history is
-backfilled from a static JSON file (`public/tiktok-followers.json`, or a URL override via
-`TIKTOK_FOLLOWER_HISTORY_URL`), forward-filled between known dates. Video-level metrics (views,
+Follower counts aren't available per-day from TikTok's API, so daily follower history is stored
+and forward-filled between known dates. `loadFollowerHistory` reads from Cloudflare KV
+(`TIKTOK_FOLLOWERS_KV` binding, single `history` key) when the binding is present; otherwise it
+falls back to a static JSON file (`public/tiktok-followers.json`, or a URL override via
+`TIKTOK_FOLLOWER_HISTORY_URL`) — KV and the static file are alternatives, not merged. New daily
+data points are appended to KV by `functions/api/tiktok/snapshot.ts`: a POST-only endpoint guarded
+by a shared secret (`x-snapshot-secret` header vs `TIKTOK_SNAPSHOT_SECRET`) that records the
+current live follower count under today's date. Cloudflare Pages Functions have no native Cron
+Trigger, so it's driven externally by `.github/workflows/tiktok-follower-snapshot.yml` (daily
+GitHub Actions cron curling the endpoint). Video-level metrics (views,
 likes, engagement) come from `video.list` and are bucketed by day. This whole feature degrades
 gracefully — with no TikTok env vars configured, `functions/api/tiktok/status.ts` reports
 `oauthReady`/`metricsReady: false` and the frontend shows demo/placeholder state instead of erroring.
