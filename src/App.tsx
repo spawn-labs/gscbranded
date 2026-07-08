@@ -4,6 +4,7 @@ import { ErrorAlert } from "./components/ErrorAlert";
 import { DateControls } from "./components/DateControls";
 import { BrandedSearchChart } from "./components/BrandedSearchChart";
 import { ComparisonTable } from "./components/ComparisonTable";
+import { CorrelationPanel } from "./components/CorrelationPanel";
 import { TikTokPanel } from "./components/TikTokPanel";
 import {
   fetchAuthStatus,
@@ -193,6 +194,8 @@ export default function App() {
             />
 
             <ComparisonTable data={data} compareEnabled={compareEnabled} />
+
+            {showTiktok && <CorrelationPanel data={data} tiktokSeries={tiktokSeries} />}
 
             <TikTokPanel
               show={showTiktok}
