@@ -1,16 +1,19 @@
 import type { BrandedSearchResponse, TikTokMetric, TikTokPoint } from "../lib/api";
 import {
+  BRANDED_SEARCH_LAG_DAYS,
   correlateWithBranded,
   describeCorrelation,
   formatCorrelation,
   type CorrelationTone,
 } from "../lib/correlation";
 
-const METRICS: { id: TikTokMetric; label: string }[] = [
-  { id: "followers", label: "Followers" },
-  { id: "views", label: "Views" },
-  { id: "likes", label: "Likes" },
-  { id: "engagement", label: "Engagement" },
+// lagDays: how many days branded search is assumed to trail this metric. Per-day
+// metrics get the social→search lag; Followers is a cumulative trend, compared same-day.
+const METRICS: { id: TikTokMetric; label: string; lagDays: number }[] = [
+  { id: "followers", label: "Followers", lagDays: 0 },
+  { id: "views", label: "Views", lagDays: BRANDED_SEARCH_LAG_DAYS },
+  { id: "likes", label: "Likes", lagDays: BRANDED_SEARCH_LAG_DAYS },
+  { id: "engagement", label: "Engagement", lagDays: BRANDED_SEARCH_LAG_DAYS },
 ];
 
 const TONE_CLASS: Record<CorrelationTone, string> = {
@@ -29,7 +32,7 @@ export function CorrelationPanel({ data, tiktokSeries }: CorrelationPanelProps) 
 
   const results = METRICS.map((metric) => ({
     ...metric,
-    ...correlateWithBranded(data, tiktokSeries, metric.id),
+    ...correlateWithBranded(data, tiktokSeries, metric.id, metric.lagDays),
   }));
 
   const sampleSize = results.reduce((max, res) => Math.max(max, res.n), 0);
@@ -45,6 +48,12 @@ export function CorrelationPanel({ data, tiktokSeries }: CorrelationPanelProps) 
       <p className="mt-1 text-xs text-[var(--color-muted)]">
         How closely each TikTok metric moves with branded search clicks over the selected range.
         −1.00 = perfect inverse · 0 = no linear link · +1.00 = perfect match.
+      </p>
+      <p className="mt-1 text-xs text-[var(--color-muted)]">
+        Views, Likes &amp; Engagement are compared against branded search{" "}
+        {BRANDED_SEARCH_LAG_DAYS} days later, modelling the typical delay between social
+        activity and the branded searches it drives. Followers, a cumulative trend, is
+        compared same-day.
       </p>
 
       <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
